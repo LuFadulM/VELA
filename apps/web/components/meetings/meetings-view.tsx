@@ -6,6 +6,7 @@ import { AvatarStack } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfidenceDot } from "@/components/ui/confidence";
+import { PrepPackModal } from "@/components/meetings/prep-pack-modal";
 import { cn } from "@/lib/utils";
 import type { Meeting } from "@/types";
 
@@ -15,11 +16,14 @@ export function MeetingsView({ meetings }: { meetings: Meeting[] }) {
   const past = meetings.filter((m) => m.startTime < now).sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
   const [activeId, setActiveId] = useState<string>(upcoming[0]?.id ?? meetings[0]?.id ?? "");
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [prepOpenFor, setPrepOpenFor] = useState<string | null>(null);
   const active = meetings.find((m) => m.id === activeId);
+  const prepMeeting = meetings.find((m) => m.id === prepOpenFor) ?? null;
 
   const list = tab === "upcoming" ? upcoming : past;
 
   return (
+    <>
     <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-white">
       <div className="flex w-[380px] flex-none flex-col border-r border-navy-100">
         <div className="flex items-center gap-1 border-b border-navy-100 px-3 py-2">
@@ -98,8 +102,8 @@ export function MeetingsView({ meetings }: { meetings: Meeting[] }) {
                 Prep pack
                 <ConfidenceDot level={active.prepPackGenerated ? "high" : "medium"} />
               </div>
-              <Button size="sm" variant={active.prepPackGenerated ? "outline" : "accent"}>
-                {active.prepPackGenerated ? "Regenerate" : "Generate prep pack"}
+              <Button size="sm" variant={active.prepPackGenerated ? "outline" : "accent"} onClick={() => setPrepOpenFor(active.id)}>
+                {active.prepPackGenerated ? "Open prep pack" : "Generate prep pack"}
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -167,5 +171,11 @@ export function MeetingsView({ meetings }: { meetings: Meeting[] }) {
         </div>
       )}
     </div>
+    <PrepPackModal
+      meeting={prepMeeting}
+      open={prepOpenFor !== null}
+      onClose={() => setPrepOpenFor(null)}
+    />
+    </>
   );
 }

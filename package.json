@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "VELA — AI operations copilot for the people who run everything.",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "pnpm --filter @vela/web dev",
     "build": "pnpm --filter @vela/database generate && pnpm --filter @vela/web build",
@@ -18,6 +18,6 @@
     "prettier": "^3.2.5"
   },
   "engines": {
-    "node": ">=18.17"
+    "node": "20.x"
   }
 }
