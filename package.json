@@ -1,0 +1,23 @@
+{
+  "name": "vela",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VELA — AI operations copilot for the people who run everything.",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @vela/web dev",
+    "build": "pnpm --filter @vela/database generate && pnpm --filter @vela/web build",
+    "start": "pnpm --filter @vela/web start",
+    "lint": "pnpm --filter @vela/web lint",
+    "db:generate": "pnpm --filter @vela/database generate",
+    "db:push": "pnpm --filter @vela/database push",
+    "db:seed": "pnpm --filter @vela/database seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "prettier": "^3.2.5"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}

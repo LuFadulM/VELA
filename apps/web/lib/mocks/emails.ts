@@ -1,0 +1,375 @@
+import type { EmailThread } from "@/types";
+
+const now = Date.now();
+
+/**
+ * 15 realistic email threads with Claude-generated analysis baked in.
+ * These feed the Inbox UI, the chat agent's `search_emails` tool, and
+ * the dashboard's "urgent items" counters.
+ */
+export const mockEmailThreads: EmailThread[] = [
+  {
+    id: "t_001",
+    subject: "Re: Q3 board pre-read — urgent",
+    participants: [{ name: "Deena Park", email: "dpark@harbor.vc" }],
+    lastMessageAt: new Date(now - 25 * 60_000),
+    messageCount: 4,
+    urgencyScore: 9,
+    isRead: false,
+    isStarred: true,
+    isArchived: false,
+    aiSummary:
+      "Deena needs the Q3 board pre-read by Friday 5pm ET. She's flagged the traction and runway slides specifically for Marcus's review before distribution.",
+    aiActionItems: [
+      { label: "Reply with timeline confirmation", confidence: "high" },
+      { label: "Block time for Marcus to review slides", confidence: "high" },
+    ],
+    draftReply:
+      "Hi Deena,\n\nThanks for the nudge. Marcus will review the traction and runway slides Thursday morning — I'll have the pre-read in your inbox by Friday 3pm ET at the latest.\n\nAppreciate you flagging early.\n\nBest,\nSarah",
+    tags: ["vip", "board", "urgent"],
+    provider: "GMAIL",
+    preview: "Just flagging — Marcus's comments on slides 4 and 7 are the critical path before…",
+    requiredAction: "reply",
+    sentiment: "urgent",
+    body:
+      "Hi Sarah,\n\nJust flagging — Marcus's comments on slides 4 (traction) and 7 (runway) are the critical path before I can circulate to the full board Friday.\n\nCan you confirm we'll have the pre-read by 5pm Friday? Happy to hop on a quick call if easier.\n\nD.",
+  },
+  {
+    id: "t_002",
+    subject: "Reschedule request — Orion partnership",
+    participants: [{ name: "Keiko Tanaka", email: "keiko@orionlabs.jp" }],
+    lastMessageAt: new Date(now - 90 * 60_000),
+    messageCount: 2,
+    urgencyScore: 7,
+    isRead: false,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Keiko (Orion CEO) asks to move Thursday 3pm ET. She proposes Tue or Wed morning JST next week — which is late afternoon ET for Marcus.",
+    aiActionItems: [
+      { label: "Propose 3 alternate slots across time zones", confidence: "high" },
+      { label: "Update calendar invite + notify attendees", confidence: "high" },
+    ],
+    draftReply:
+      "Hi Keiko,\n\nAbsolutely — happy to reschedule. Three options that work on Marcus's end (all ET, early morning for you):\n\n• Tue 7:00–7:45 PM ET (Wed 8:00 AM JST)\n• Wed 8:00–8:45 PM ET (Thu 9:00 AM JST)\n• Fri 7:30–8:15 PM ET (Sat 8:30 AM JST)\n\nLet me know what suits and I'll send the updated invite.\n\nBest,\nSarah",
+    tags: ["partnership", "schedule"],
+    provider: "GMAIL",
+    preview: "Apologies for the late notice — I have a board commitment Thursday that's…",
+    requiredAction: "schedule",
+    sentiment: "neutral",
+    body:
+      "Sarah-san,\n\nApologies for the late notice — I have a board commitment Thursday that I cannot move. Could we shift our partnership conversation to Tue or Wed morning JST next week?\n\nLooking forward to the discussion.\n\nKeiko",
+  },
+  {
+    id: "t_003",
+    subject: "Please approve: new hire offer — Senior PM",
+    participants: [{ name: "Priya Shah", email: "priya@northwind.co" }],
+    lastMessageAt: new Date(now - 3 * 60 * 60_000),
+    messageCount: 3,
+    urgencyScore: 8,
+    isRead: false,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Priya needs Marcus's approval on a Sr PM offer: $205k base + 0.15% equity. The candidate has a competing offer that expires Friday.",
+    aiActionItems: [
+      { label: "Flag urgency — competing offer expires Friday", confidence: "high" },
+      { label: "Create approval task for Marcus", confidence: "high" },
+    ],
+    draftReply:
+      "Hi Priya,\n\nMarcus is reviewing and will have a decision by EOD tomorrow. If you need me to chase, just say the word.\n\nBest,\nSarah",
+    tags: ["hiring", "urgent", "approval"],
+    provider: "GMAIL",
+    preview: "As discussed, attaching the offer for Mei Lin at $205k base + 0.15% equity…",
+    requiredAction: "reply",
+    sentiment: "neutral",
+    body:
+      "Hi Sarah,\n\nAs discussed, attaching the offer for Mei Lin at $205k base + 0.15% equity. She has a competing offer from Anthropic that expires Friday — we need Marcus's sign-off ideally by Thursday.\n\nThanks,\nPriya",
+  },
+  {
+    id: "t_004",
+    subject: "Re: Harbor follow-up docs",
+    participants: [{ name: "Deena Park", email: "dpark@harbor.vc" }],
+    lastMessageAt: new Date(now - 5 * 60 * 60_000),
+    messageCount: 5,
+    urgencyScore: 8,
+    isRead: false,
+    isStarred: true,
+    isArchived: false,
+    aiSummary:
+      "Harbor requires updated cap table + ARR bridge before Friday's board meeting. Tom (CFO) owns delivery.",
+    aiActionItems: [
+      { label: "Loop in Tom Vega with deadline", confidence: "high" },
+      { label: "Create task: 'Deliver cap table + ARR bridge by Thu EOD'", confidence: "high" },
+    ],
+    draftReply:
+      "Deena — Tom has the updated cap table and ARR bridge ready. We'll get them to you by Thursday EOD so they're digested before Friday.\n\nSarah",
+    tags: ["vip", "board", "finance"],
+    provider: "GMAIL",
+    preview: "Need the ARR bridge showing Q2 → Q3 along with the updated cap table…",
+    requiredAction: "reply",
+    sentiment: "urgent",
+    body:
+      "Hi Sarah,\n\nNeed the ARR bridge showing Q2 → Q3 movement along with the updated cap table reflecting the March SAFE. Would love to have these in hand before Friday's meeting.\n\nD.",
+  },
+  {
+    id: "t_005",
+    subject: "Offsite logistics — June 10–12",
+    participants: [{ name: "Miles Grant", email: "miles@northwind.co" }],
+    lastMessageAt: new Date(now - 9 * 60 * 60_000),
+    messageCount: 7,
+    urgencyScore: 7,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Miles needs a venue decision (Napa vs. Mendocino) and the confirmed attendee list by Wednesday. Leaning Napa for logistics.",
+    aiActionItems: [
+      { label: "Decide Napa vs. Mendocino", confidence: "medium" },
+      { label: "Confirm attendee list (13 people so far)", confidence: "high" },
+    ],
+    draftReply: "",
+    tags: ["offsite", "planning"],
+    provider: "GMAIL",
+    preview: "Venue team is holding both Carneros Resort and Heritage House — they need…",
+    requiredAction: "reply",
+    sentiment: "neutral",
+    body:
+      "Hi Sarah,\n\nVenue team is holding both Carneros Resort (Napa) and Heritage House (Mendocino) — they need an answer by Wednesday or we lose the block. My recommendation is Carneros: easier travel for East Coast folks, better AV for the strategy sessions.\n\nAlso, can we lock the attendee list? I have 13 confirmed so far.\n\nMiles",
+  },
+  {
+    id: "t_006",
+    subject: "Calendar conflict — Thursday 10am",
+    participants: [{ name: "Miles Grant", email: "miles@northwind.co" }],
+    lastMessageAt: new Date(now - 11 * 60 * 60_000),
+    messageCount: 2,
+    urgencyScore: 7,
+    isRead: false,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Exec sync and investor update are double-booked Thursday 10am. Miles asks which to move.",
+    aiActionItems: [
+      { label: "Recommend moving exec sync (lower external cost)", confidence: "medium" },
+      { label: "Reschedule within same week", confidence: "high" },
+    ],
+    draftReply:
+      "Miles — let's keep the investor update and push the exec sync to Friday 9am. I'll send the moved invite now.\n\nSarah",
+    tags: ["schedule", "conflict"],
+    provider: "GMAIL",
+    preview: "We have the exec sync and the Harbor investor update stacked on Thursday…",
+    requiredAction: "schedule",
+    sentiment: "neutral",
+    body:
+      "Hey Sarah — we have the exec sync and the Harbor investor update stacked on Thursday 10am. Which one do you want to move? I'd vote keep investor, move exec sync to Friday AM.",
+  },
+  {
+    id: "t_007",
+    subject: "Re: Legal review — Orion MSA",
+    participants: [{ name: "Lena Okafor", email: "lena@bluestone.law" }],
+    lastMessageAt: new Date(now - 14 * 60 * 60_000),
+    messageCount: 3,
+    urgencyScore: 7,
+    isRead: false,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Bluestone flagged three clauses in Orion's MSA: IP assignment (broad), indemnity cap (too low), termination (90d notice requested).",
+    aiActionItems: [
+      { label: "Schedule 15m call with Lena + Marcus", confidence: "high" },
+      { label: "Create redline task and assign to legal", confidence: "medium" },
+    ],
+    draftReply:
+      "Lena — thanks for the detailed review. I'll get 15 minutes with Marcus in the next 48 hours so he can make the call on the IP clause. Will you be able to get redlines to Orion by Monday?\n\nSarah",
+    tags: ["legal", "partnership"],
+    provider: "GMAIL",
+    preview: "Three items need Marcus's eyes before we redline back to Orion's counsel…",
+    requiredAction: "reply",
+    sentiment: "neutral",
+    body:
+      "Sarah,\n\nThree items need Marcus's eyes before we redline back to Orion's counsel:\n\n1. Clause 4.3 IP assignment — currently assigns all derivative work. Recommend narrowing to project-specific.\n2. Clause 7.1 indemnity cap — $500k is low given the data scope. I'd push for 2x annual fees.\n3. Clause 11 termination — they want 90 days notice, we typically do 30.\n\nHappy to walk through.\n\nLena",
+  },
+  {
+    id: "t_008",
+    subject: "Your AcmeCo renewal — proposal attached",
+    participants: [{ name: "Jordan Meyer", email: "jordan@acmeco.com" }],
+    lastMessageAt: new Date(now - 1 * 24 * 60 * 60_000),
+    messageCount: 2,
+    urgencyScore: 6,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "AcmeCo sent a $1.2M renewal proposal. Jordan wants a 30-minute walkthrough this week to discuss tier structure.",
+    aiActionItems: [{ label: "Find time for 30m walkthrough this week", confidence: "high" }],
+    draftReply: "",
+    tags: ["partnership", "renewal"],
+    provider: "GMAIL",
+    preview: "Proposal attached at $1.2M for the 18-month renewal with the new usage tier…",
+    requiredAction: "schedule",
+    sentiment: "positive",
+    body:
+      "Hi Sarah,\n\nProposal attached at $1.2M for the 18-month renewal with the new usage tier. Can we grab 30 mins this week to walk through it? Happy to do any afternoon.\n\nJordan",
+  },
+  {
+    id: "t_009",
+    subject: "Dinner Tuesday? — Deena",
+    participants: [{ name: "Deena Park", email: "dpark@harbor.vc" }],
+    lastMessageAt: new Date(now - 1 * 24 * 60 * 60_000 - 3 * 60 * 60_000),
+    messageCount: 2,
+    urgencyScore: 6,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Deena proposing dinner Tuesday 7pm at Bistro Noelle to discuss the board offsite agenda.",
+    aiActionItems: [
+      { label: "Confirm Tuesday 7pm on calendar", confidence: "high" },
+      { label: "Book reservation at Bistro Noelle", confidence: "medium" },
+    ],
+    draftReply:
+      "Deena — works for Marcus. I'll book Bistro Noelle for 7pm Tuesday and send the invite.\n\nSarah",
+    tags: ["vip", "social"],
+    provider: "GMAIL",
+    preview: "Would love to grab dinner Tuesday to map out the board offsite agenda…",
+    requiredAction: "reply",
+    sentiment: "positive",
+    body:
+      "Sarah — would love to grab dinner Tuesday to map out the board offsite agenda. 7pm at Bistro Noelle? Marcus's choice really.\n\nD.",
+  },
+  {
+    id: "t_010",
+    subject: "Press inquiry — TechCrunch Series B",
+    participants: [{ name: "Diego Ramos", email: "d.ramos@summitpr.com" }],
+    lastMessageAt: new Date(now - 1 * 24 * 60 * 60_000 - 6 * 60 * 60_000),
+    messageCount: 1,
+    urgencyScore: 6,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "TechCrunch reporter wants a 20-minute interview for Series B coverage. Diego recommends the Thursday slot before embargo.",
+    aiActionItems: [{ label: "Offer Thursday 2–2:20pm slot", confidence: "high" }],
+    draftReply:
+      "Diego — Thursday 2:00–2:20pm works. Send me the reporter's contact and I'll confirm directly.\n\nSarah",
+    tags: ["pr"],
+    provider: "GMAIL",
+    preview: "Quick one — Natasha at TechCrunch is prepping the Series B piece and would love…",
+    requiredAction: "reply",
+    sentiment: "positive",
+    body:
+      "Sarah,\n\nQuick one — Natasha at TechCrunch is prepping the Series B piece and would love 20 minutes with Marcus before the embargo lifts Friday. Thursday 2pm is her preference. Let me know and I'll make the intro.\n\nDiego",
+  },
+  {
+    id: "t_011",
+    subject: "Expense report — March travel",
+    participants: [{ name: "Hana Kim", email: "hana@northwind.co" }],
+    lastMessageAt: new Date(now - 2 * 24 * 60 * 60_000),
+    messageCount: 1,
+    urgencyScore: 5,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Hana needs Marcus's sign-off on $4,210 in March travel receipts. No approval in 9 days.",
+    aiActionItems: [{ label: "Nudge Marcus to approve in expense tool", confidence: "high" }],
+    draftReply: "",
+    tags: ["finance", "waiting"],
+    provider: "GMAIL",
+    preview: "Friendly ping — still waiting on sign-off for the March batch…",
+    requiredAction: "delegate",
+    sentiment: "neutral",
+    body:
+      "Hi Sarah,\n\nFriendly ping — still waiting on sign-off for the March batch ($4,210 across 8 receipts). Would love to close March books by Friday.\n\nHana",
+  },
+  {
+    id: "t_012",
+    subject: "Daily brief — Tuesday",
+    participants: [{ name: "Vela", email: "brief@vela.ai" }],
+    lastMessageAt: new Date(now - 2 * 24 * 60 * 60_000 - 6 * 60 * 60_000),
+    messageCount: 1,
+    urgencyScore: 4,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Today: 3 meetings, 2 urgent emails, 4 overdue tasks. Priority is the Q3 pre-read.",
+    aiActionItems: [],
+    draftReply: "",
+    tags: ["brief", "fyi"],
+    provider: "GMAIL",
+    preview: "Good morning, Sarah. Here's your brief for Tuesday…",
+    requiredAction: "fyi",
+    sentiment: "neutral",
+    body: "Good morning, Sarah.\n\nHere's your brief for Tuesday:\n\n• 3 meetings scheduled\n• 2 urgent emails pending reply\n• 4 tasks overdue\n• Top priority: Q3 board pre-read (due Friday)\n\n— Vela",
+  },
+  {
+    id: "t_013",
+    subject: "Birthday reminder — Tom Vega (tomorrow)",
+    participants: [{ name: "Vela", email: "brief@vela.ai" }],
+    lastMessageAt: new Date(now - 3 * 24 * 60 * 60_000),
+    messageCount: 1,
+    urgencyScore: 4,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary: "CFO Tom Vega's birthday is tomorrow. Suggesting a card + coffee drop-off.",
+    aiActionItems: [{ label: "Order card + coffee delivery", confidence: "medium" }],
+    draftReply: "",
+    tags: ["fyi", "relationships"],
+    provider: "GMAIL",
+    preview: "Tom Vega's birthday is tomorrow. He prefers oat lattes from Blue Bottle…",
+    requiredAction: "fyi",
+    sentiment: "positive",
+    body:
+      "Tom Vega's birthday is tomorrow. He prefers oat lattes from Blue Bottle. Last year you sent a handwritten card — want me to queue the same this year?\n\n— Vela",
+  },
+  {
+    id: "t_014",
+    subject: "FYI: New AI partnership opportunity",
+    participants: [{ name: "Noah Bennett", email: "noah@forge.ai" }],
+    lastMessageAt: new Date(now - 4 * 24 * 60 * 60_000),
+    messageCount: 1,
+    urgencyScore: 3,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Noah (Forge AI founder, intro'd via Ravi) exploring OEM partnership. No time pressure — he's suggesting a 30m intro call.",
+    aiActionItems: [{ label: "Propose a 30m slot in the next 2 weeks", confidence: "medium" }],
+    draftReply: "",
+    tags: ["partnership", "fyi"],
+    provider: "GMAIL",
+    preview: "Ravi Sethi connected us — would love to share what we're building at Forge…",
+    requiredAction: "fyi",
+    sentiment: "positive",
+    body:
+      "Hi Sarah,\n\nRavi Sethi connected us — would love to share what we're building at Forge AI and explore an OEM angle with Northwind. No urgency, happy to work around Marcus's schedule.\n\nNoah",
+  },
+  {
+    id: "t_015",
+    subject: "Re: Speaking slot at SaaStr — confirmed",
+    participants: [{ name: "Diego Ramos", email: "d.ramos@summitpr.com" }],
+    lastMessageAt: new Date(now - 5 * 24 * 60 * 60_000),
+    messageCount: 4,
+    urgencyScore: 5,
+    isRead: true,
+    isStarred: false,
+    isArchived: false,
+    aiSummary:
+      "Marcus is confirmed for the SaaStr fireside. Prep pack due 2 weeks prior.",
+    aiActionItems: [{ label: "Block 60m for prep doc + talking points", confidence: "high" }],
+    draftReply: "",
+    tags: ["pr", "event"],
+    provider: "GMAIL",
+    preview: "Confirmed for the mainstage fireside chat — title locked as…",
+    requiredAction: "fyi",
+    sentiment: "positive",
+    body:
+      "Sarah,\n\nConfirmed for the mainstage fireside chat — title locked as 'Running On Small: AI-Native Ops'. Jason will moderate. Prep pack due May 20. I'll send speaker requirements Monday.\n\nDiego",
+  },
+];
+
+export function getEmailThread(id: string): EmailThread | undefined {
+  return mockEmailThreads.find((t) => t.id === id);
+}
