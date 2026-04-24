@@ -1,0 +1,418 @@
+// Vela — Prisma schema
+// One operator / principal / workspace graph + integrations, inbox,
+// calendar, tasks, contacts, documents, automations, notifications.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum UserRole {
+  EA
+  OPS_MANAGER
+  OPS_ASSISTANT
+  VA
+}
+
+enum CommunicationStyle {
+  FORMAL
+  CASUAL
+  DIRECT
+}
+
+enum WorkspacePlan {
+  FREE
+  PRO
+  TEAMS
+  ENTERPRISE
+}
+
+enum IntegrationProvider {
+  GMAIL
+  OUTLOOK
+  GOOGLE_CALENDAR
+  OUTLOOK_CALENDAR
+  SLACK
+  ZOOM
+  GOOGLE_DRIVE
+  NOTION
+  ASANA
+  HUBSPOT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TaskSource {
+  EMAIL
+  SLACK
+  MEETING
+  MANUAL
+  AI
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+}
+
+enum RelationshipStrength {
+  STRONG
+  MEDIUM
+  WEAK
+  UNKNOWN
+}
+
+enum DocumentType {
+  MEETING_NOTES
+  AGENDA
+  REPORT
+  TEMPLATE
+  BRIEF
+  ITINERARY
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+// -----------------------------------------------------------------------------
+// Core identity
+// -----------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile       UserProfile?
+  workspaces    WorkspaceMember[]
+  notifications Notification[]
+  assignedTasks Task[]            @relation("AssigneeTasks")
+  createdDocs   Document[]        @relation("DocumentCreator")
+  editedDocs    Document[]        @relation("DocumentEditor")
+}
+
+model UserProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  role               UserRole           @default(EA)
+  communicationStyle CommunicationStyle @default(DIRECT)
+  timezone           String             @default("America/New_York")
+  workingHours       Json?
+  preferences        Json?
+  principalName      String?
+  principalRole      String?
+  principalEmail     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// Workspaces & principals
+// -----------------------------------------------------------------------------
+
+model Workspace {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  plan      WorkspacePlan @default(FREE)
+  settings  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  members      WorkspaceMember[]
+  integrations Integration[]
+  principals   Principal[]
+  tasks        Task[]
+  meetings     Meeting[]
+  emailThreads EmailThread[]
+  automations  Automation[]
+  contacts     Contact[]
+  documents    Document[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("member") // owner | admin | member
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Principal {
+  id                  String  @id @default(cuid())
+  workspaceId         String
+  name                String
+  role                String?
+  email               String?
+  phone               String?
+  preferences         Json?
+  relationshipContext Json?
+
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contacts     PrincipalContact[]
+  tasks        Task[]
+  meetings     Meeting[]
+  emailThreads EmailThread[]
+}
+
+model PrincipalContact {
+  id          String @id @default(cuid())
+  principalId String
+  contactId   String
+
+  principal Principal @relation(fields: [principalId], references: [id], onDelete: Cascade)
+  contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([principalId, contactId])
+}
+
+// -----------------------------------------------------------------------------
+// Integrations
+// -----------------------------------------------------------------------------
+
+model Integration {
+  id           String              @id @default(cuid())
+  workspaceId  String
+  provider     IntegrationProvider
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  scopes       String[]
+  metadata     Json?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+}
+
+// -----------------------------------------------------------------------------
+// Tasks
+// -----------------------------------------------------------------------------
+
+model Task {
+  id          String       @id @default(cuid())
+  workspaceId String
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  assigneeId  String?
+  principalId String?
+  projectId   String?
+  sourceType  TaskSource   @default(MANUAL)
+  sourceId    String?
+  tags        String[]
+  aiGenerated Boolean      @default(false)
+  aiContext   Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignee  User?      @relation("AssigneeTasks", fields: [assigneeId], references: [id])
+  principal Principal? @relation(fields: [principalId], references: [id])
+  subtasks  Subtask[]
+}
+
+model Subtask {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// Meetings
+// -----------------------------------------------------------------------------
+
+model Meeting {
+  id                 String        @id @default(cuid())
+  workspaceId        String
+  title              String
+  description        String?
+  startTime          DateTime
+  endTime            DateTime
+  timezone           String        @default("America/New_York")
+  location           String?
+  videoLink          String?
+  attendees          Json
+  status             MeetingStatus @default(SCHEDULED)
+  agenda             Json?
+  notes              String?
+  actionItems        Json?
+  prepPackGenerated  Boolean       @default(false)
+  followUpSent       Boolean       @default(false)
+  principalId        String?
+  externalId         String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  principal Principal? @relation(fields: [principalId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// Email
+// -----------------------------------------------------------------------------
+
+model EmailThread {
+  id             String        @id @default(cuid())
+  workspaceId    String
+  principalId    String?
+  externalId     String
+  subject        String
+  participants   Json
+  lastMessageAt  DateTime
+  messageCount   Int           @default(1)
+  urgencyScore   Int           @default(5)
+  isRead         Boolean       @default(false)
+  isStarred      Boolean       @default(false)
+  isArchived     Boolean       @default(false)
+  aiSummary      String?
+  aiActionItems  Json?
+  draftReply     String?
+  tags           String[]
+  provider       EmailProvider @default(GMAIL)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  principal Principal? @relation(fields: [principalId], references: [id])
+
+  @@unique([workspaceId, externalId])
+}
+
+// -----------------------------------------------------------------------------
+// Automations
+// -----------------------------------------------------------------------------
+
+model Automation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  trigger     Json
+  conditions  Json?
+  actions     Json
+  runCount    Int       @default(0)
+  lastRunAt   DateTime?
+  errorCount  Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// Contacts
+// -----------------------------------------------------------------------------
+
+model Contact {
+  id                   String               @id @default(cuid())
+  workspaceId          String
+  name                 String
+  email                String?
+  phone                String?
+  company              String?
+  role                 String?
+  relationshipStrength RelationshipStrength @default(UNKNOWN)
+  lastContactDate      DateTime?
+  interactionCount     Int                  @default(0)
+  notes                String?
+  tags                 String[]
+  aiContext            Json?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  workspace  Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  principals PrincipalContact[]
+}
+
+// -----------------------------------------------------------------------------
+// Documents
+// -----------------------------------------------------------------------------
+
+model Document {
+  id               String       @id @default(cuid())
+  workspaceId      String
+  title            String
+  type             DocumentType
+  content          String
+  metadata         Json?
+  isTemplate       Boolean      @default(false)
+  linkedMeetingId  String?
+  linkedProjectId  String?
+  createdById      String
+  lastEditedById   String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User      @relation("DocumentCreator", fields: [createdById], references: [id])
+  lastEditedBy User?     @relation("DocumentEditor", fields: [lastEditedById], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// Notifications
+// -----------------------------------------------------------------------------
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean             @default(false)
+  channel   NotificationChannel @default(IN_APP)
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

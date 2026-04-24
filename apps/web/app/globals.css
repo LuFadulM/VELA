@@ -1,0 +1,90 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 255 255 255;
+    --surface: 248 250 252;
+    --border: 226 232 240;
+    --foreground: 15 23 42;
+    --foreground-muted: 100 116 139;
+    --accent: 99 102 241;
+  }
+
+  html,
+  body {
+    @apply bg-white text-navy-900 antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::selection {
+    background: #6366f1;
+    color: white;
+  }
+}
+
+@layer components {
+  .vela-card {
+    @apply rounded-card border border-navy-200 bg-white shadow-card;
+  }
+
+  .vela-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .vela-btn-primary {
+    @apply vela-btn bg-navy-900 text-white hover:bg-navy-800;
+  }
+
+  .vela-btn-accent {
+    @apply vela-btn bg-indigo-600 text-white hover:bg-indigo-700;
+  }
+
+  .vela-btn-ghost {
+    @apply vela-btn text-navy-700 hover:bg-navy-100;
+  }
+
+  .vela-input {
+    @apply w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-sm
+      outline-none ring-indigo-500/20 transition focus:border-indigo-500 focus:ring-4;
+  }
+
+  .vela-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-navy-300;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgb(15 23 42 / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(15 23 42 / 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 40%, #f1f5f9 80%);
+    background-size: 800px 100%;
+    @apply animate-shimmer;
+  }
+}
