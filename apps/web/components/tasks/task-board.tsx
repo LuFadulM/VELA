@@ -16,6 +16,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TaskDetailDrawer } from "@/components/tasks/task-detail-drawer";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
 
 const COLUMNS: { key: TaskStatus; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -35,6 +36,8 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
 export function TaskBoard({ tasks }: { tasks: Task[] }) {
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [input, setInput] = useState("");
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const openTask = tasks.find((t) => t.id === openTaskId) ?? null;
 
   const grouped = useMemo(() => {
     const map = Object.fromEntries(COLUMNS.map((c) => [c.key, [] as Task[]])) as Record<TaskStatus, Task[]>;
@@ -43,6 +46,7 @@ export function TaskBoard({ tasks }: { tasks: Task[] }) {
   }, [tasks]);
 
   return (
+    <>
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white">
       {/* NLP quick-add */}
       <div className="border-b border-navy-100 bg-gradient-to-br from-indigo-50 to-white px-6 py-4">
@@ -102,7 +106,7 @@ export function TaskBoard({ tasks }: { tasks: Task[] }) {
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-2 scrollbar-thin">
                 {(grouped[col.key] ?? []).map((t) => (
-                  <TaskCard key={t.id} task={t} />
+                  <TaskCard key={t.id} task={t} onOpen={() => setOpenTaskId(t.id)} />
                 ))}
                 {(grouped[col.key] ?? []).length === 0 && (
                   <div className="px-3 py-8 text-center text-xs text-navy-400">Nothing here.</div>
@@ -126,7 +130,11 @@ export function TaskBoard({ tasks }: { tasks: Task[] }) {
             </thead>
             <tbody>
               {tasks.map((t) => (
-                <tr key={t.id} className="border-b border-navy-100 hover:bg-navy-50">
+                <tr
+                  key={t.id}
+                  className="cursor-pointer border-b border-navy-100 hover:bg-navy-50"
+                  onClick={() => setOpenTaskId(t.id)}
+                >
                   <td className="px-6 py-2.5">
                     <div className="flex items-center gap-2">
                       <SourceIcon source={t.sourceType} />
@@ -148,15 +156,24 @@ export function TaskBoard({ tasks }: { tasks: Task[] }) {
         </div>
       )}
     </div>
+    <TaskDetailDrawer
+      task={openTask}
+      open={openTaskId !== null}
+      onClose={() => setOpenTaskId(null)}
+    />
+    </>
   );
 }
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
   const progress = task.subtasks.length
     ? Math.round((task.subtasks.filter((s) => s.done).length / task.subtasks.length) * 100)
     : null;
   return (
-    <div className="group cursor-pointer rounded-md bg-white p-3 shadow-card transition hover:shadow-lift">
+    <div
+      onClick={onOpen}
+      className="group cursor-pointer rounded-md bg-white p-3 shadow-card transition hover:shadow-lift"
+    >
       <div className="flex items-start gap-2">
         <span
           className="mt-1 h-2 w-2 flex-none rounded-full"
