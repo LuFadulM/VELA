@@ -9,6 +9,10 @@ import { mockEmailThreads, mockMeetings, mockProfile, mockTasks, mockUser } from
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel free tier defaults to 10s; chat replies routinely take longer
+// when Claude is reasoning over context. 30s is the cap on Hobby and is
+// re-asserted in vercel.json for clarity.
+export const maxDuration = 30;
 
 interface ChatRequest {
   messages: ChatTurn[];

@@ -1,29 +1,101 @@
+"use client";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function SignInPage() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const next = search.get("next") || "/dashboard";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState<"email" | "google" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function signInWithEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const supabase = createSupabaseBrowserClient();
+    // Mock mode — no auth provider; fall through to the demo workspace.
+    if (!supabase) {
+      router.push(next);
+      return;
+    }
+    setLoading("email");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(null);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    router.push(next);
+    router.refresh();
+  }
+
+  async function signInWithGoogle() {
+    setError(null);
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) {
+      router.push(next);
+      return;
+    }
+    setLoading("google");
+    const origin = window.location.origin;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      },
+    });
+    if (error) {
+      setLoading(null);
+      setError(error.message);
+    }
+    // Otherwise the browser redirects to Google.
+  }
+
   return (
     <div className="mx-auto w-full max-w-md">
       <div className="rounded-modal border border-navy-200 bg-white p-8 shadow-card">
         <h1 className="text-2xl font-bold tracking-tight text-navy-900">Welcome back</h1>
         <p className="mt-1 text-sm text-navy-500">Sign in to run your day with Vela.</p>
 
-        <form action="/dashboard" className="mt-7 space-y-4">
+        <form onSubmit={signInWithEmail} className="mt-7 space-y-4">
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-navy-600">
               Work email
             </label>
-            <Input type="email" name="email" placeholder="sarah@northwind.co" required />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="sarah@northwind.co"
+              autoComplete="email"
+              required
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-navy-600">
               Password
             </label>
-            <Input type="password" name="password" placeholder="••••••••" required />
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
           </div>
-          <Button type="submit" className="w-full">
+          {error && (
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>
+          )}
+          <Button type="submit" className="w-full" loading={loading === "email"}>
             Sign in
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -35,13 +107,21 @@ export default function SignInPage() {
           <div className="h-px flex-1 bg-navy-200" />
         </div>
 
-        <Link
-          href="/dashboard"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-navy-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-800 hover:bg-navy-50"
+        <button
+          type="button"
+          onClick={signInWithGoogle}
+          disabled={loading !== null}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-navy-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-800 transition hover:bg-navy-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <GoogleIcon />
-          Continue with Google
-        </Link>
+          {loading === "google" ? "Redirecting…" : "Continue with Google"}
+        </button>
+
+        {!process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+            Demo mode — no auth configured. Any submit lands you in the demo workspace.
+          </p>
+        )}
       </div>
 
       <p className="mt-5 text-center text-sm text-navy-500">

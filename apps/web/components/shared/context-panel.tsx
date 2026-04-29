@@ -2,6 +2,7 @@
 import { format } from "date-fns";
 import { Bell, CalendarClock, CheckSquare, Inbox } from "lucide-react";
 import { mockMeetings, mockTasks, mockEmailThreads, mockNotifications } from "@/lib/mocks";
+import { useRealtimeNotifications } from "@/lib/supabase/realtime";
 
 /**
  * Persistent right-hand "what needs me?" panel. Always visible on dashboard
@@ -19,7 +20,9 @@ export function ContextPanel() {
   const overdue = mockTasks
     .filter((t) => t.status !== "DONE" && t.status !== "CANCELLED" && t.dueDate <= now)
     .slice(0, 3);
-  const unreadNotif = mockNotifications.filter((n) => !n.isRead).slice(0, 3);
+  // Subscribes to Supabase Realtime when configured; falls back to mock seed.
+  const liveNotifications = useRealtimeNotifications(mockNotifications);
+  const unreadNotif = liveNotifications.filter((n) => !n.isRead).slice(0, 3);
 
   return (
     <aside className="hidden h-screen w-[320px] flex-none overflow-y-auto border-l border-navy-100 bg-navy-50/40 p-4 scrollbar-thin xl:block">
