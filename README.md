@@ -79,15 +79,17 @@ switches to real.
    Google Cloud setup; the redirect URL is
    `https://<your-vercel-domain>/auth/callback`.
 
-5. Push the schema:
+5. Push the schema and apply RLS:
    ```bash
    pnpm db:generate
    pnpm db:push
    pnpm db:seed   # seeds the demo workspace
+   pnpm db:rls    # applies packages/database/prisma/supabase-rls.sql
    ```
 
-6. **Realtime → Tables**: enable replication on the `Notification`
-   table so the in-app notification feed updates live.
+   The RLS file is mandatory — Supabase enables RLS by default and
+   without these policies anonymous queries will return zero rows. It
+   also enables Realtime on `Notification` for the live in-app feed.
 
 ### 2. Configure Anthropic
 

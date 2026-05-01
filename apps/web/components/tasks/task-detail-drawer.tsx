@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { generateSubtasksAction } from "@/lib/actions/ai";
 import { format } from "date-fns";
 import {
   X,
@@ -60,15 +61,33 @@ export function TaskDetailDrawer({
   async function generateSubtasks() {
     if (!task) return;
     setGeneratingSubtasks(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setSubtasks((prev) => [
-      ...prev,
-      { id: `ai-${Date.now()}-a`, title: `Clarify scope of "${task.title}"`, done: false },
-      { id: `ai-${Date.now()}-b`, title: "Identify owner and stakeholders", done: false },
-      { id: `ai-${Date.now()}-c`, title: "Draft first artifact", done: false },
-      { id: `ai-${Date.now()}-d`, title: "Review and send", done: false },
-    ]);
-    setGeneratingSubtasks(false);
+    try {
+      const { subtasks: titles } = await generateSubtasksAction({
+        title: task.title,
+        description: task.description,
+      });
+      setSubtasks((prev) => [
+        ...prev,
+        ...titles.map((title, i) => ({
+          id: `ai-${Date.now()}-${i}`,
+          title,
+          done: false,
+        })),
+      ]);
+    } catch {
+      // The AI service throws when ANTHROPIC_API_KEY is unset and a real
+      // request is forced. Fall back to a deterministic local stub so
+      // the affordance still feels responsive.
+      setSubtasks((prev) => [
+        ...prev,
+        { id: `ai-${Date.now()}-a`, title: `Clarify scope of "${task.title}"`, done: false },
+        { id: `ai-${Date.now()}-b`, title: "Identify owner and stakeholders", done: false },
+        { id: `ai-${Date.now()}-c`, title: "Draft first artifact", done: false },
+        { id: `ai-${Date.now()}-d`, title: "Review and send", done: false },
+      ]);
+    } finally {
+      setGeneratingSubtasks(false);
+    }
   }
 
   async function draftFollowUpMock() {

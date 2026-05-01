@@ -11,7 +11,8 @@
     "lint": "pnpm --filter @vela/web lint",
     "db:generate": "pnpm --filter @vela/database generate",
     "db:push": "pnpm --filter @vela/database push",
-    "db:seed": "pnpm --filter @vela/database seed"
+    "db:seed": "pnpm --filter @vela/database seed",
+    "db:rls": "psql \"$DIRECT_URL\" -f packages/database/prisma/supabase-rls.sql"
   },
   "devDependencies": {
     "typescript": "^5.4.5",

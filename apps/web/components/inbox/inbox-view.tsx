@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Archive,
   CheckSquare,
@@ -16,6 +16,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfidenceDot } from "@/components/ui/confidence";
+import { regenerateDraftAction } from "@/lib/actions/ai";
 import { formatRelativeTime, urgencyLevel, urgencyColor, cn } from "@/lib/utils";
 import type { EmailThread, Tone } from "@/types";
 
@@ -28,6 +29,29 @@ export function InboxView({ threads }: { threads: EmailThread[] }) {
   const [activeId, setActiveId] = useState<string>(threads[0]?.id ?? "");
   const [filter, setFilter] = useState<FilterKey>("All");
   const [tone, setTone] = useState<Tone>("Professional");
+  const [draft, setDraft] = useState("");
+  const [drafting, startDraftTransition] = useTransition();
+
+  // Reset draft to the seeded one when the thread changes; when the tone
+  // changes for the *same* thread we ask the server to regenerate.
+  useEffect(() => {
+    const t = threads.find((x) => x.id === activeId);
+    setDraft(t?.draftReply ?? "");
+    setTone("Professional");
+  }, [activeId, threads]);
+
+  function changeTone(nextTone: Tone) {
+    setTone(nextTone);
+    if (!activeId) return;
+    startDraftTransition(async () => {
+      try {
+        const { draft } = await regenerateDraftAction({ threadId: activeId, tone: nextTone });
+        setDraft(draft);
+      } catch {
+        // Server action failed (probably missing API key); keep current draft.
+      }
+    });
+  }
 
   const filtered = useMemo(() => {
     const base = [...threads].sort((a, b) => b.urgencyScore - a.urgencyScore);
@@ -225,14 +249,22 @@ export function InboxView({ threads }: { threads: EmailThread[] }) {
           {/* draft reply */}
           <section className="border-b border-navy-100 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-navy-500">Draft reply</h4>
+              <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-navy-500">
+                Draft reply
+                {drafting && (
+                  <span className="inline-flex items-center gap-1 text-[10px] normal-case text-indigo-600">
+                    <Sparkles className="h-3 w-3 animate-pulse" /> Vela rewriting…
+                  </span>
+                )}
+              </h4>
               <div className="flex gap-1">
                 {TONES.map((t) => (
                   <button
                     key={t}
-                    onClick={() => setTone(t)}
+                    onClick={() => changeTone(t)}
+                    disabled={drafting}
                     className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium transition",
+                      "rounded-full px-2 py-0.5 text-[10px] font-medium transition disabled:opacity-50",
                       tone === t ? "bg-navy-900 text-white" : "bg-white text-navy-500 hover:bg-navy-100",
                     )}
                   >
@@ -242,16 +274,19 @@ export function InboxView({ threads }: { threads: EmailThread[] }) {
               </div>
             </div>
             <textarea
-              value={active.draftReply ?? ""}
-              readOnly
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
               rows={10}
-              className="w-full resize-none rounded-lg border border-navy-200 bg-white p-2.5 text-[12px] leading-relaxed text-navy-800 scrollbar-thin"
+              className={cn(
+                "w-full resize-none rounded-lg border bg-white p-2.5 text-[12px] leading-relaxed text-navy-800 scrollbar-thin outline-none",
+                drafting ? "border-indigo-300" : "border-navy-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10",
+              )}
             />
             <div className="mt-2 flex gap-2">
-              <Button size="sm" variant="accent" className="flex-1">
+              <Button size="sm" variant="accent" className="flex-1" disabled={drafting || !draft.trim()}>
                 <Mail className="h-3.5 w-3.5" /> Send
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" disabled={drafting}>
                 Edit
               </Button>
             </div>
