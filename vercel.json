@@ -2,6 +2,18 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "pnpm --filter @vela/database generate && pnpm --filter @vela/web build",
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "outputDirectory": "apps/web/.next"
+  "installCommand": "npm install -g pnpm@9.15.4 && pnpm install --no-frozen-lockfile",
+  "outputDirectory": "apps/web/.next",
+  "regions": ["iad1"],
+  "functions": {
+    "apps/web/app/api/chat/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/weekly-briefing",
+      "schedule": "0 13 * * 1"
+    }
+  ]
 }

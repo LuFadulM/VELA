@@ -9,6 +9,10 @@ import { mockEmailThreads, mockMeetings, mockProfile, mockTasks, mockUser } from
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel free tier defaults to 10s; chat replies routinely take longer
+// when Claude is reasoning over context. 30s is the cap on Hobby and is
+// re-asserted in vercel.json for clarity.
+export const maxDuration = 30;
 
 interface ChatRequest {
   messages: ChatTurn[];
@@ -42,17 +46,19 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const delta of streamVelaReply({
+        for await (const event of streamVelaReply({
           systemPrompt,
           history,
           userMessage: last.content,
         })) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta })}\n\n`));
+          // The wire format mirrors the StreamEvent discriminated union
+          // so the client can switch on `type` without reinterpreting.
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         }
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`));
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", message })}\n\n`));
       } finally {
         controller.close();
       }

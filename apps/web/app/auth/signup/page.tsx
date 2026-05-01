@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types";
 
 const ROLES: { value: UserRole; label: string; blurb: string }[] = [
@@ -47,16 +48,64 @@ export default function SignupPage() {
   const [principalEmail, setPrincipalEmail] = useState("");
   const [integration, setIntegration] = useState<string | null>("GMAIL");
   const [workflow, setWorkflow] = useState<string | null>("email");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountPassword, setAccountPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const supabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   const canContinue =
     (step === 1 && !!role) ||
     (step === 2 && principalName.trim().length > 1) ||
     (step === 3 && !!integration) ||
-    (step === 4 && !!workflow);
+    (step === 4 &&
+      !!workflow &&
+      (!supabaseConfigured ||
+        (accountEmail.includes("@") && accountPassword.length >= 8)));
 
-  function next() {
-    if (step < 4) setStep(step + 1);
-    else router.push("/dashboard");
+  async function next() {
+    setError(null);
+    if (step < 4) {
+      setStep(step + 1);
+      return;
+    }
+    // Final step — create the account if Supabase is wired up.
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) {
+      router.push("/dashboard");
+      return;
+    }
+    setSubmitting(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: accountEmail,
+      password: accountPassword,
+      options: {
+        data: {
+          role,
+          principal_name: principalName,
+          principal_role: principalRole,
+          principal_email: principalEmail,
+          primary_workflow: workflow,
+        },
+        emailRedirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/auth/callback?next=/dashboard`
+            : undefined,
+      },
+    });
+    setSubmitting(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    // If Supabase is configured to confirm emails, there's no session yet.
+    if (data.session) {
+      router.push("/dashboard");
+      router.refresh();
+    } else {
+      router.push("/auth/signin?confirm=1");
+    }
   }
   function back() {
     if (step > 1) setStep(step - 1);
@@ -238,9 +287,48 @@ export default function SignupPage() {
                     );
                   })}
                 </div>
-                <div className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-900">
-                  <b>Ready to go.</b> You'll land in your {workflow === "scheduling" ? "Calendar" : workflow === "tasks" ? "Tasks" : "Inbox"} with 15 emails, 8 meetings, and 20 tasks pre-loaded — so you can explore immediately.
-                </div>
+                {supabaseConfigured ? (
+                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-navy-500">
+                        Create your account
+                      </p>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-navy-600">
+                        Work email
+                      </label>
+                      <Input
+                        type="email"
+                        value={accountEmail}
+                        onChange={(e) => setAccountEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-navy-600">
+                        Password
+                      </label>
+                      <Input
+                        type="password"
+                        value={accountPassword}
+                        onChange={(e) => setAccountPassword(e.target.value)}
+                        placeholder="At least 8 characters"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    {error && (
+                      <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 sm:col-span-2">
+                        {error}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-900">
+                    <b>Ready to go.</b> You'll land in your {workflow === "scheduling" ? "Calendar" : workflow === "tasks" ? "Tasks" : "Inbox"} with 15 emails, 8 meetings, and 20 tasks pre-loaded — so you can explore immediately.
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -251,7 +339,7 @@ export default function SignupPage() {
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <Button onClick={next} disabled={!canContinue}>
+          <Button onClick={next} disabled={!canContinue || submitting} loading={submitting}>
             {step === 4 ? "Enter Vela" : "Continue"}
             <ArrowRight className="h-4 w-4" />
           </Button>

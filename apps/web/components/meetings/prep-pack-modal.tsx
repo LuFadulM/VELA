@@ -17,6 +17,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfidenceDot } from "@/components/ui/confidence";
+import { generatePrepPackAction } from "@/lib/actions/ai";
 import { cn } from "@/lib/utils";
 import { mockContacts } from "@/lib/mocks";
 import type { Meeting } from "@/types";
@@ -41,11 +42,20 @@ export function PrepPackModal({
 }) {
   const [tab, setTab] = useState<Tab>("Agenda");
   const [regenerating, setRegenerating] = useState(false);
+  const [regenBrief, setRegenBrief] = useState<string | null>(null);
 
   async function regenerate() {
+    if (!meeting) return;
     setRegenerating(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setRegenerating(false);
+    try {
+      const { contextBrief } = await generatePrepPackAction({ meetingId: meeting.id });
+      setRegenBrief(contextBrief);
+    } catch {
+      // Mock-mode AI: keep current pack, just simulate the wait.
+      await new Promise((r) => setTimeout(r, 400));
+    } finally {
+      setRegenerating(false);
+    }
   }
 
   return (
@@ -129,7 +139,7 @@ export function PrepPackModal({
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
               {tab === "Agenda" && <AgendaTab meeting={meeting} />}
               {tab === "Attendees" && <AttendeesTab meeting={meeting} />}
-              {tab === "Context" && <ContextTab meeting={meeting} />}
+              {tab === "Context" && <ContextTab meeting={meeting} regenBrief={regenBrief} />}
               {tab === "Notes" && <NotesTab meeting={meeting} />}
             </div>
           </motion.div>
@@ -234,17 +244,29 @@ function AttendeesTab({ meeting }: { meeting: Meeting }) {
   );
 }
 
-function ContextTab({ meeting }: { meeting: Meeting }) {
+function ContextTab({
+  meeting,
+  regenBrief,
+}: {
+  meeting: Meeting;
+  regenBrief: string | null;
+}) {
+  const brief =
+    regenBrief ??
+    `This is the third conversation in this thread in two weeks. Last time, ${meeting.attendees[0]?.name.split(" ")[0]} raised two open questions that you owe them an answer on — partnership scope and timeline. They tend to be direct and appreciate specific numbers; come with the Q3 traction slide bookmarked.`;
+
   return (
     <div className="space-y-4 text-sm text-navy-800">
       <section className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
         <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
           <Sparkles className="h-3 w-3" /> Context brief
+          {regenBrief && (
+            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-800">
+              Just regenerated
+            </span>
+          )}
         </div>
-        <p>
-          This is the third conversation in this thread in two weeks. Last time, {meeting.attendees[0]?.name.split(" ")[0]} raised two open questions that you owe them an answer on — partnership scope and timeline.
-          They tend to be direct and appreciate specific numbers; come with the Q3 traction slide bookmarked.
-        </p>
+        <p>{brief}</p>
       </section>
 
       <section>

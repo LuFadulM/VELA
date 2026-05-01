@@ -7,8 +7,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime queries route through Supabase's pgBouncer pool (port 6543).
+  // Migrations and `prisma db push` need a direct connection (port 5432)
+  // because pgBouncer doesn't speak prepared statements / advisory locks.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // -----------------------------------------------------------------------------

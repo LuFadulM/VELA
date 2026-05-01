@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, isAIEnabled, DEFAULT_MODEL } from "./client";
+import { executeTool, type ToolCall } from "./tools";
 import type { UserProfile, Meeting, Task, EmailThread } from "@/types";
 
 /**
@@ -163,46 +164,107 @@ export interface ChatTurn {
   content: string;
 }
 
+export type StreamEvent =
+  | { type: "text"; delta: string }
+  | { type: "tool_call"; name: string; summary: string }
+  | { type: "tool_result"; name: string; summary: string };
+
+const MAX_TOOL_TURNS = 4;
+
 /**
- * Start a streaming response from Vela. Returns an AsyncIterable of text
- * deltas so the UI can render progressively. When AI is disabled, yields
- * a canned response so the chat UI is still fully interactive in mock mode.
+ * Drive Vela's chat agent. Yields a discriminated union of stream
+ * events: text deltas, "tool_call" announcements (when Claude requests
+ * a tool), and "tool_result" notes (when the tool returns). The route
+ * handler serializes these as SSE.
+ *
+ * Implements the standard Anthropic tool-use loop: stream a turn, if it
+ * ends with `tool_use` blocks execute them server-side and append a
+ * `tool_result` user message, then stream the next turn. We bound the
+ * loop with MAX_TOOL_TURNS so a runaway model can't melt the function.
+ *
+ * In mock mode (no API key) we synthesise a plausible reply and emit a
+ * fake "search_emails" tool_call so the UI can still demo the loop.
  */
 export async function* streamVelaReply(args: {
   systemPrompt: string;
   history: ChatTurn[];
   userMessage: string;
-}): AsyncGenerator<string, void, void> {
+}): AsyncGenerator<StreamEvent, void, void> {
   if (!isAIEnabled()) {
+    yield { type: "tool_call", name: "search_emails", summary: "Searching inbox for context…" };
+    await new Promise((r) => setTimeout(r, 250));
+    yield {
+      type: "tool_result",
+      name: "search_emails",
+      summary: "3 urgent threads, top: Deena (board pre-read).",
+    };
     const parts =
-      `Here's what I'd do: I'll look across today's inbox and calendar, draft the next three messages for your review, and queue the rest. Want me to focus on anything specific first?`.split(
+      `Here's what I'd do: tackle Deena's pre-read first — Marcus needs to review slides 4 and 7 by Thursday morning. Want me to draft the reply confirming Friday delivery and create the task?`.split(
         " ",
       );
     for (const p of parts) {
-      yield p + " ";
-      await new Promise((r) => setTimeout(r, 35));
+      yield { type: "text", delta: p + " " };
+      await new Promise((r) => setTimeout(r, 30));
     }
     return;
   }
 
   const client = getAnthropic();
-
   const messages: Anthropic.Messages.MessageParam[] = [
     ...args.history.map((t) => ({ role: t.role, content: t.content }) as Anthropic.Messages.MessageParam),
     { role: "user", content: args.userMessage },
   ];
 
-  const stream = client.messages.stream({
-    model: DEFAULT_MODEL,
-    max_tokens: 1200,
-    system: args.systemPrompt,
-    tools: VELA_TOOLS,
-    messages,
-  });
+  for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+    const stream = client.messages.stream({
+      model: DEFAULT_MODEL,
+      max_tokens: 1200,
+      system: args.systemPrompt,
+      tools: VELA_TOOLS,
+      messages,
+    });
 
-  for await (const event of stream) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      yield event.delta.text;
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        yield { type: "text", delta: event.delta.text };
+      }
     }
+
+    const final = await stream.finalMessage();
+    // Append the assistant turn so subsequent loops have it in context.
+    messages.push({ role: "assistant", content: final.content });
+
+    if (final.stop_reason !== "tool_use") {
+      // Done — Claude is satisfied without further tool calls.
+      return;
+    }
+
+    const toolUses = final.content.filter(
+      (b): b is Extract<(typeof final.content)[number], { type: "tool_use" }> =>
+        b.type === "tool_use",
+    );
+
+    const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+    for (const block of toolUses) {
+      yield { type: "tool_call", name: block.name, summary: `Calling ${block.name}…` };
+      const call: ToolCall = {
+        name: block.name,
+        input: (block.input as Record<string, unknown>) ?? {},
+      };
+      const result = await executeTool(call, block.id);
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: result.content,
+      });
+      yield {
+        type: "tool_result",
+        name: block.name,
+        summary: result.uiSummary ?? "Tool finished.",
+      };
+    }
+
+    // Hand the results back to the model and let it continue.
+    messages.push({ role: "user", content: toolResults });
   }
 }

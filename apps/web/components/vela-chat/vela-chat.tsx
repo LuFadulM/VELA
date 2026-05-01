@@ -1,13 +1,23 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Send, Sparkles, ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { X, Send, Sparkles, ArrowUpRight, CheckCircle2, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface ToolEvent {
+  /** Tool name (e.g. "search_emails") */
+  name: string;
+  /** Human-readable status surfaced inside the assistant bubble */
+  summary: string;
+  /** "running" until tool_result arrives, then "done" */
+  status: "running" | "done";
+}
 
 interface Turn {
   role: "user" | "assistant";
   content: string;
   pending?: boolean;
+  toolEvents?: ToolEvent[];
 }
 
 const QUICK_PROMPTS = [
@@ -75,12 +85,14 @@ export function VelaChat({ open, onClose }: { open: boolean; onClose: () => void
         for (const evt of events) {
           const line = evt.split("\n").find((l) => l.startsWith("data: "));
           if (!line) continue;
-          const payload = JSON.parse(line.slice(6)) as {
-            delta?: string;
-            done?: boolean;
-            error?: string;
-          };
-          if (payload.delta) {
+          const payload = JSON.parse(line.slice(6)) as
+            | { type: "text"; delta: string }
+            | { type: "tool_call"; name: string; summary: string }
+            | { type: "tool_result"; name: string; summary: string }
+            | { type: "done" }
+            | { type: "error"; message: string };
+
+          if (payload.type === "text") {
             acc += payload.delta;
             setTurns((prev) => {
               const copy = [...prev];
@@ -88,14 +100,38 @@ export function VelaChat({ open, onClose }: { open: boolean; onClose: () => void
               copy[copy.length - 1] = { ...last, content: acc, pending: true };
               return copy;
             });
-          }
-          if (payload.done || payload.error) {
+          } else if (payload.type === "tool_call") {
+            setTurns((prev) => {
+              const copy = [...prev];
+              const last = copy[copy.length - 1]!;
+              const events = [...(last.toolEvents ?? [])];
+              events.push({ name: payload.name, summary: payload.summary, status: "running" });
+              copy[copy.length - 1] = { ...last, toolEvents: events, pending: true };
+              return copy;
+            });
+          } else if (payload.type === "tool_result") {
+            setTurns((prev) => {
+              const copy = [...prev];
+              const last = copy[copy.length - 1]!;
+              const events = [...(last.toolEvents ?? [])];
+              // Mark the most recent matching call as done with the
+              // server's friendly summary; if none found append it.
+              for (let i = events.length - 1; i >= 0; i--) {
+                if (events[i]!.name === payload.name && events[i]!.status === "running") {
+                  events[i] = { ...events[i]!, status: "done", summary: payload.summary };
+                  break;
+                }
+              }
+              copy[copy.length - 1] = { ...last, toolEvents: events, pending: true };
+              return copy;
+            });
+          } else if (payload.type === "done" || payload.type === "error") {
             setTurns((prev) => {
               const copy = [...prev];
               const last = copy[copy.length - 1]!;
               copy[copy.length - 1] = {
                 ...last,
-                content: payload.error ? `⚠️ ${payload.error}` : last.content,
+                content: payload.type === "error" ? `⚠️ ${payload.message}` : last.content,
                 pending: false,
               };
               return copy;
@@ -237,12 +273,39 @@ function MessageBubble({ turn, isLast }: { turn: Turn; isLast: boolean }) {
       <div className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
         <Sparkles className="h-3 w-3" />
       </div>
-      <div className="flex-1">
-        <div className="rounded-2xl rounded-tl-md bg-navy-50 px-3.5 py-2.5 text-sm leading-relaxed text-navy-900 whitespace-pre-wrap">
-          {turn.content || (turn.pending ? "…" : "")}
-          {turn.pending && <span className="ml-1 inline-block h-3.5 w-0.5 animate-pulse bg-indigo-500 align-middle" />}
-        </div>
-        {/* actionable card example on the first model response */}
+      <div className="flex-1 space-y-1.5">
+        {turn.toolEvents && turn.toolEvents.length > 0 && (
+          <ul className="space-y-1">
+            {turn.toolEvents.map((evt, i) => (
+              <li
+                key={i}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px]",
+                  evt.status === "running"
+                    ? "border-indigo-100 bg-indigo-50 text-indigo-700"
+                    : "border-emerald-100 bg-emerald-50 text-emerald-800",
+                )}
+              >
+                {evt.status === "running" ? (
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" />
+                ) : (
+                  <CheckCircle2 className="h-3 w-3" />
+                )}
+                <Wrench className="h-3 w-3" />
+                <span className="font-mono text-[10px] uppercase tracking-wide">{evt.name}</span>
+                <span>·</span>
+                <span>{evt.summary}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(turn.content || turn.pending) && (
+          <div className="rounded-2xl rounded-tl-md bg-navy-50 px-3.5 py-2.5 text-sm leading-relaxed text-navy-900 whitespace-pre-wrap">
+            {turn.content || (turn.pending ? "…" : "")}
+            {turn.pending && <span className="ml-1 inline-block h-3.5 w-0.5 animate-pulse bg-indigo-500 align-middle" />}
+          </div>
+        )}
+        {/* Actionable card example for scheduling-related responses. */}
         {isLast && !turn.pending && turn.content.toLowerCase().includes("schedule") && (
           <ConfirmCard
             title="Schedule with Deena — Tuesday 3:00 PM"
